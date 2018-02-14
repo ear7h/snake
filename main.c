@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "board.h"
 #include "console.h"
@@ -84,7 +85,7 @@ void print_snake(snake_t snake) {
     print_on_board(head, "@");
 
     point seg;
-    char *chr = malloc(1);
+
     for (int i = 1; i < snake.length; i++) {
         seg = snake.snake[(snake.head + i) % snake.length];
         if (point_compare(head, seg)) {
@@ -93,23 +94,8 @@ void print_snake(snake_t snake) {
             return;
         }
 
-        //sprintf(chr, "%d", (snake.head+i) % 10);
         print_on_board(seg, "#");
     }
-
-    free(chr);
-
-    // print coordinates of all elements
-//    for (int i = 0; i < snake.length; i++) {
-//        point p = snake.snake[i];
-//        move_cursor(0, 3 + BOARD_Y + i);
-//        printf("%d: (x: %d, y: %d) ", i, p.x, p.y);
-//        if (i == snake.head) {
-//            puts("h");
-//        } else {
-//            puts(" ");
-//        }
-//    }
 }
 
 void *snake_control(void *snake_ptr) {
@@ -170,6 +156,10 @@ void *snake_control(void *snake_ptr) {
     return NULL;
 }
 
+long hz_to_ns(int hz) {
+    return ((long)1e+9 - 1) / hz;
+}
+
 int main() {
     clear_console();
 
@@ -185,47 +175,43 @@ int main() {
     pthread_t key_controls;
 
     if (pthread_create(&key_controls, NULL, snake_control, &snake)) {
-        printf("could not listen to keyboard");
+        print_at(1, 1, "could not listen to keyboard");
         return 1;
     }
 
     // timing
     struct timespec t1, t2;
-    t1.tv_sec = 0;
-    t1.tv_nsec = 3e8L;
 
-    char *score = malloc(2);
-    for (int i = 0; ALIVE; i++) {
+    char *score = malloc(4 * sizeof(char)); //2 digit number + \0
+
+    while (ALIVE) {
         clear_game_board();
 
         print_snake(snake);
         tick_snake(&snake);
 
-        // print iteration
-//        move_cursor(BOARD_X + 2, BOARD_Y + 2);
-//        printf("%d\n", i);
-
-        // needs newline or print_snake() fails
+        // needs newline or print_snake() shit goes wack
         sprintf(score, "%d\n", snake.length);
         print_at(0, BOARD_Y + 2, score);
 
-        // debug info
-//        move_cursor(0, BOARD_Y + 3);
-//
-//        printf("x: %d, y: %d, l: %d, h: %d\n",
-//               snake.snake[snake.head].x,
-//               snake.snake[snake.head].y,
-//               snake.length,
-//               snake.head);
+        /*
+         * robert jordan - wheel of time
+         */
 
-        while (nanosleep(&t1, &t2) != 0) {
-            printf("s: %ld, ns: %ld\n", t1.tv_sec, t1.tv_nsec);
-            t1 = t2;
-            return 1;
+        // set the refresh time
+        t1.tv_sec = 0;
+        t1.tv_nsec = hz_to_ns(snake.length + 1); // start at 2 hz
+
+        while (nanosleep(&t1, &t2) == -1) {
+            if (errno == EINTR) {
+                printf("s: %ld, ns: %ld\n", t1.tv_sec, t1.tv_nsec);
+                t1 = t2;
+            } else {
+                printf("error %d", errno);
+                return 1;
+            }
         }
-
-        //lclose();
-    };
+    }
 
 
     if (pthread_kill(key_controls, SIGINT)) {

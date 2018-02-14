@@ -1,3 +1,4 @@
 .idea
-cmake-build*
+cmake-build*/
+!cmake-build*/*
 *.DS_Store
