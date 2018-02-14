@@ -1,4 +1,4 @@
 .idea
-cmake-build*/
-!cmake-build*/*
+cmake-build-*/*
+!cmake-build-*/snake
 *.DS_Store

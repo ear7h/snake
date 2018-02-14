@@ -11,9 +11,9 @@ From root project directory
 ``` bash
 > cd cmake-build-release
 > cmake -DCMAKE_BUILD_TYPE=Release ../
-> cd ..
->
+> make
 ```
+This should result in a binary in the `cmake-build-release` directory
 
 ## Todo
 * speed up snake after each size increase
